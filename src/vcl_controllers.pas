@@ -630,25 +630,36 @@ var
   lIdx: Integer;
   lObj: TtiObject;
   lVal: Variant;
+  lPropType: TTypeKind;
 begin
-
   // If FListData is not nil, the controller is bound to an external object list for its items.
   // If it IS nil, then we are using items that already in the list manually.
 
   if FListData <> nil then
     begin
+      lPropType := TypInfo.PropType(Model, FModelAttrib);
+
+      if lPropType = tkClass then
+        lObj := TtiObject(TypInfo.GetObjectProp(Model, FModelAttrib))
+      else
+      begin
         lVal := tiGetProperty(Model, FModelAttrib);
+
         if VarIsNull(lVal) then
           exit;
+
         // Find the object in the ListData list with the ListValueName matching
         // the Model's ModelAttrib field value.
         if LowerCase(ListValueProp) = 'oid' then
           lObj := ListData.Find(lVal)
         else
-          lObj := ListData.FindByProps([ListValueProp], [lval]);
+          lObj := ListData.FindByProps([ListValueProp], [lVal]);
+      end;
 
-        if lObj <> nil then
-          View.ItemIndex := lObj.Index;
+      lIdx := ListData.IndexOf(lObj);
+
+      if lObj <> nil then
+        View.ItemIndex := lIdx;
     end
   else
     begin
@@ -682,18 +693,25 @@ end;
 procedure TComboBoxController.ViewToModel;
 var
   lVal: Variant;
+  lPropType: TTypeKind;
 begin
-
   if FListData <> nil then
     begin
       if View.ItemIndex >= 0 then
         begin
-          if LowerCase(ListValueProp) = 'oid' then
-            lVal := ListData.Items[View.ItemIndex].OID.AsString
-          else
-            lVal := tiGetProperty(ListData.Items[View.ItemIndex], ListValueProp);
+          lPropType := TypInfo.PropType(Model, FModelAttrib);
 
-          tiSetProperty(Model, FModelAttrib, lVal);
+          if lPropType = tkClass then
+            TypInfo.SetObjectProp(Model, FModelAttrib, ListData[View.ItemIndex])
+          else
+          begin
+            if LowerCase(ListValueProp) = 'oid' then
+              lVal := ListData.Items[View.ItemIndex].OID.AsString
+            else
+              lVal := tiGetProperty(ListData.Items[View.ItemIndex], ListValueProp);
+
+            tiSetProperty(Model, FModelAttrib, lVal);
+          end;
         end;
     end
   else
